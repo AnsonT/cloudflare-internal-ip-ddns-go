@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cloudflare-internal-ip-ddns/commands"
 	"context"
 	"fmt"
 	"log"
@@ -115,8 +116,9 @@ func main() {
 	godotenv.Load()
 
 	app := &cli.App{
-		Name:  "cloudflare-internal-ip-ddns",
-		Usage: "Update Cloudflare DNS record with internal IP address",
+		Name:    "cloudflare-internal-ip-ddns",
+		Usage:   "Update Cloudflare DNS record with internal IP address",
+		Version: commands.Version,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "token",
