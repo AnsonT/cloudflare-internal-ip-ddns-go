@@ -144,6 +144,16 @@ func main() {
 			zoneName := cCtx.String("domain")
 			recordName := cCtx.String("subdomain")
 
+			if apiToken == "" {
+				log.Fatal("token is required")
+			}
+			if zoneName == "" {
+				log.Fatal("top level domain is required")
+			}
+			if recordName == "" {
+				recordName = "*"
+			}
+
 			err := ddns(apiToken, zoneName, recordName)
 
 			return err
