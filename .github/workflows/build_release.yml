@@ -37,7 +37,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         with:
-          tag: ${{ github.ref }}
           title: Release ${{ github.ref }}
           prerelease: false
       - name: Upload Release Assets
