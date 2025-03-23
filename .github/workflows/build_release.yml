@@ -7,42 +7,30 @@ on:
 
 jobs:
   release:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        go_version: [1.22.x]
-    runs-on: ubuntu-latest
+        goos: [linux, darwin, windows]
+        goarch: ["386", "amd64"]
+        exclude:
+          - goos: darwin
+            goarch: "386"
     steps:
-      - name: Checkout
-        uses: actions/checkout@v1
-      - name: Set up Go 1.22
-        uses: actions/setup-go@v1
-        with:
-          go-version: ${{ matrix.go_version }}
-      # - name: Test Pre-Publish
-      #   run: make test
-      - name: Build with xgo
-        uses: crazy-max/ghaction-xgo@v3
-        with:
-          xgo_version: latest
-          go_version: ${{ matrix.go_version }}
-          dest: build
-          prefix: cloudflare-internal-ip-ddns
-          targets: windows/386,windows/amd64,linux/386,linux/amd64,darwin/386,darwin/amd64
-          v: true
-          x: false
-          ldflags: -s -w
-      - name: Create Release
-        uses: elgohr/Github-Release-Action@v5
-        id: create_release
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Release code
+        uses: likexian/go-release-action@v0.7.0
         env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-        with:
-          title: Release ${{ github.ref }}
-          prerelease: false
-      - name: Upload Release Assets
-        uses: glentiki/xbin-release-action@v1.0.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
-          assets_path: ./build
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          BUILD_IN_DIR: cmd/cloudflare-internal-ip-ddns
+          BUILD_BIN_DIR: bin
+          BUILD_BIN_FILE: cloudflare-internal-ip-ddns
+          BUILD_FLAGS: -v
+          BUILD_LDFLAGS: -w -s
+          PACK_ASSET_FILE: cloudflare-internal-ip-ddns-${{ matrix.goos }}-${{ matrix.goarch }}
+          # PACK_INCLUDE_DIR: cloudflare-internal-ip-ddns
+          # PACK_EXTRA_FILES: LICENSE README.md
+      - name: Release version
+        run: echo ${{ env.tag_name }}
