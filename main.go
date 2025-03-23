@@ -13,7 +13,23 @@ import (
 	"github.com/urfave/cli/v2" // imports as package "cli"
 )
 
-func getLocalIP() (string, error) {
+// isIPInCIDR checks if an IP address is within a CIDR range
+func isIPInCIDR(ipStr, cidrStr string) (bool, error) {
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false, fmt.Errorf("invalid IP address: %s", ipStr)
+	}
+
+	_, ipNet, err := net.ParseCIDR(cidrStr)
+	if err != nil {
+		return false, fmt.Errorf("invalid CIDR: %s", cidrStr)
+	}
+
+	return ipNet.Contains(ip), nil
+}
+
+func getLocalIP(subnet string) (string, error) {
+
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		return "", err
@@ -22,7 +38,9 @@ func getLocalIP() (string, error) {
 		// Check if the address type is IP address and not loopback
 		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
 			if ipnet.IP.To4() != nil {
-				return ipnet.IP.String(), nil
+				if ok, _ := isIPInCIDR(ipnet.IP.String(), subnet); ok {
+					return ipnet.IP.String(), nil
+				}
 			}
 		}
 	}
@@ -33,8 +51,9 @@ func ddns(
 	apiToken string,
 	zoneName string,
 	recordName string,
+	subnet string,
 ) error {
-	ipAddress, err := getLocalIP()
+	ipAddress, err := getLocalIP(subnet)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -138,11 +157,19 @@ func main() {
 				Usage:   "Subdomain name (Record name), e.g. 'home' for 'home.example.com'",
 				EnvVars: []string{"CF_RECORD_NAME"},
 			},
+			&cli.StringFlag{
+				Name:        "subnet",
+				Aliases:     []string{"ip"},
+				Usage:       "Look for IP within a subnet",
+				EnvVars:     []string{"IP_SUBNET"},
+				DefaultText: "0.0.0.0/0",
+			},
 		},
 		Action: func(cCtx *cli.Context) error {
 			apiToken := cCtx.String("token")
 			zoneName := cCtx.String("domain")
 			recordName := cCtx.String("subdomain")
+			subnet := cCtx.String("subnet")
 
 			if apiToken == "" {
 				log.Fatal("token is required")
@@ -154,7 +181,7 @@ func main() {
 				recordName = "*"
 			}
 
-			err := ddns(apiToken, zoneName, recordName)
+			err := ddns(apiToken, zoneName, recordName, subnet)
 
 			return err
 		},

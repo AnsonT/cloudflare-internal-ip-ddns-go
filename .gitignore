@@ -25,3 +25,5 @@ go.work.sum
 .env
 .history
 release
+
+.DS_Store
