@@ -26,7 +26,7 @@ jobs:
           go-version: '^1.21' # Use latest Go 1.21.x
 
       - name: Cache Go modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
@@ -46,7 +46,7 @@ jobs:
           go build -o $output .
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cloudflare-internal-ip-ddns-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/cloudflare-internal-ip-ddns-${{ matrix.goos }}-${{ matrix.goarch }}*
@@ -59,12 +59,12 @@ jobs:
       contents: write
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: dist
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/cloudflare-internal-ip-ddns-*
