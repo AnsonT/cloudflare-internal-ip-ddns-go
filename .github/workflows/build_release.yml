@@ -1,36 +1,72 @@
-name: Release
+name: Build and Release
 
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*' # Trigger on version tags like v1.0.0
 
 jobs:
-  release:
+  build:
+    name: Build
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        goos: [linux, darwin, windows]
-        goarch: ["386", "amd64"]
+        goos: [linux, darwin]
+        goarch: [amd64, arm64]
         exclude:
-          - goos: darwin
-            goarch: "386"
+          - goos: windows
+            goarch: arm64 # Windows ARM64 builds not commonly needed
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Release code
-        uses: likexian/go-release-action@v0.7.0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '^1.21' # Use latest Go 1.21.x
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Build
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          BUILD_IN_DIR: cmd/cloudflare-internal-ip-ddns
-          BUILD_BIN_DIR: bin
-          BUILD_BIN_FILE: cloudflare-internal-ip-ddns
-          BUILD_FLAGS: -v
-          BUILD_LDFLAGS: -w -s
-          PACK_ASSET_FILE: cloudflare-internal-ip-ddns-${{ matrix.goos }}-${{ matrix.goarch }}
-          # PACK_INCLUDE_DIR: cloudflare-internal-ip-ddns
-          # PACK_EXTRA_FILES: LICENSE README.md
-      - name: Release version
-        run: echo ${{ env.tag_name }}
+        run: |
+          mkdir -p dist
+          output="dist/cloudflare-internal-ip-ddns-${{ matrix.goos }}-${{ matrix.goarch }}"
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            output="$output.exe"
+          fi
+          go build -o $output .
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: cloudflare-internal-ip-ddns-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/cloudflare-internal-ip-ddns-${{ matrix.goos }}-${{ matrix.goarch }}*
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: dist
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/cloudflare-internal-ip-ddns-*
+          draft: false
+          prerelease: false
